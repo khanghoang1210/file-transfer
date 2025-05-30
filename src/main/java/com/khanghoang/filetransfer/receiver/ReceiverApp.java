@@ -8,7 +8,7 @@ import com.khanghoang.filetransfer.sender.core.FileSenderImpl;
 public class ReceiverApp {
     public static void main(String[] args) {
         String host = "localhost";
-        String saveDir =  "C:\\Users\\Ms.Trang\\Downloads\\";
+        String saveDir =  "C:\\Users\\Ms.Trang\\Downloads\\test\\";
         int port = 9000;
         FileReceiverImpl fileReceiver = new FileReceiverImpl(saveDir);
         new SocketClientProvider(host, port, fileReceiver).connect();

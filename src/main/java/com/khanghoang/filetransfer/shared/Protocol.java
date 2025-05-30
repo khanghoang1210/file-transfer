@@ -11,12 +11,12 @@ public class Protocol {
 
         byte[] fileNameBytes = chunk.getFileName().getBytes(StandardCharsets.UTF_8);
 
-        dos.writeInt(fileNameBytes.length);             // Độ dài tên file
-        dos.write(fileNameBytes);                       // Tên file
-        dos.writeInt(chunk.getChunkIndex());            // Thứ tự chunk
-        dos.writeInt(chunk.getTotalChunks());           // Tổng số chunk
-        dos.writeInt(chunk.getData().length);           // Kích thước chunk
-        dos.write(chunk.getData());                     // Dữ liệu chunk
+        dos.writeInt(fileNameBytes.length);
+        dos.write(fileNameBytes);
+        dos.writeInt(chunk.getChunkIndex());
+        dos.writeInt(chunk.getTotalChunks());
+        dos.writeInt(chunk.getData().length);
+        dos.write(chunk.getData());
         dos.flush();
     }
 

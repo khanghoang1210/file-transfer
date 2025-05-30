@@ -1,5 +1,6 @@
 package com.khanghoang.filetransfer.sender.core;
 
+import com.khanghoang.filetransfer.shared.Protocol;
 import com.khanghoang.filetransfer.shared.model.ProtocolChunk;
 
 import java.io.*;
@@ -7,37 +8,51 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FileSenderImpl implements FileSender {
-    private final File file;
+    private final List<File> files;
     private static final int CHUNK_SIZE = 1024;
 
-    public FileSenderImpl(String filePath) {
-        this.file = new File(filePath);
+    public FileSenderImpl(List<File> files) {
+        this.files = files;
     }
 
     @Override
     public void sendFile(OutputStream out) throws IOException {
-        List<ProtocolChunk> chunks = splitFileIntoChunks();
-        List<Thread> threads = new ArrayList<>();
+        List<Thread> fileThreads = new ArrayList<>();
 
-        for (ProtocolChunk chunk : chunks) {
-            Thread thread = new Thread(new ChunkSenderTask(out, chunk));
-            thread.start();
-            threads.add(thread);
+        for (File file : files) {
+            Thread fileThread = new Thread(() -> {
+                try {
+                    sendSingleFile(file, out);
+                } catch (IOException e) {
+                    System.err.println("Lỗi khi gửi file " + file.getName() + ": " + e.getMessage());
+                }
+            });
+
+            fileThread.start();
+            fileThreads.add(fileThread);
         }
 
-        // ensure all threads are stopped
-        for (Thread t : threads) {
+        for (Thread t : fileThreads) {
             try {
                 t.join();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IOException("Thread bị gián đoạn trong quá trình gửi file.", e);
+                throw new IOException("Thread bị gián đoạn trong quá trình gửi nhiều file.", e);
             }
         }
-
-        System.out.println("File sent successfully.");
     }
-    private List<ProtocolChunk> splitFileIntoChunks() throws IOException {
+
+    private void sendSingleFile(File file, OutputStream out) throws IOException {
+        List<ProtocolChunk> chunks = splitFileIntoChunks(file);
+
+        for (ProtocolChunk chunk : chunks) {
+            synchronized (out) {
+                Protocol.encodeChunk(out, chunk);
+                System.out.println("[" + file.getName() + "] Sent chunk " + chunk.getChunkIndex());
+            }
+        }
+    }
+    private List<ProtocolChunk> splitFileIntoChunks(File file) throws IOException {
         List<ProtocolChunk> chunks = new ArrayList<>();
         byte[] buffer = new byte[CHUNK_SIZE];
 

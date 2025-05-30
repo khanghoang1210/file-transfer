@@ -13,47 +13,47 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChunkReceiverBuffer {
-    private final Map<Integer, byte[]> chunkMap  = new ConcurrentHashMap<>();
-    private int totalChunks = -1;
-    private String fileName = "";
+    private final Map<Integer, byte[]> chunkMap = new ConcurrentHashMap<>();
+    private final String fileName;
     private final String saveDir;
+    private final int totalChunks;
+    private int receivedChunks = 0;
 
-    public ChunkReceiverBuffer(String saveDir) {
+    public ChunkReceiverBuffer(String fileName, int totalChunks, String saveDir) {
+        this.fileName = fileName;
+        this.totalChunks = totalChunks;
         this.saveDir = saveDir;
     }
 
-    public void receiveChunk(ProtocolChunk chunk) {
-        if (fileName.isEmpty()) {
-            fileName = chunk.getFileName();
-            totalChunks = chunk.getTotalChunks();
-        }
-
+    public synchronized void receiveChunk(ProtocolChunk chunk) {
         chunkMap.put(chunk.getChunkIndex(), chunk.getData());
-        System.out.println("Nhận chunk " + chunk.getChunkIndex());
+        receivedChunks++;
 
-        if (chunkMap.size() == totalChunks) {
-            try {
-                assembleFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        System.out.println("[" + fileName + "] Nhận chunk " + chunk.getChunkIndex());
+
+        if (receivedChunks == totalChunks) {
+            System.out.println("[" + fileName + "] Đủ chunk, bắt đầu ghi file...");
+            new Thread(this::assembleFile).start();
         }
     }
 
-    private void assembleFile() throws IOException {
-        Path savePath = Paths.get(saveDir);
-        if (!Files.exists(savePath)) {
-            Files.createDirectories(savePath);
-        }
-
-        File outputFile = new File(saveDir + File.separator + fileName);
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(outputFile))) {
-            for (int i = 0; i < totalChunks; i++) {
-                bos.write(chunkMap.get(i));
+    private void assembleFile() {
+        try {
+            Path savePath = Paths.get(saveDir);
+            if (!Files.exists(savePath)) {
+                Files.createDirectories(savePath);
             }
-            bos.flush();
-        }
 
-        System.out.println("Đã ghép file thành công: " + fileName);
+            File outputFile = new File(saveDir + File.separator + fileName);
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(outputFile))) {
+                for (int i = 0; i < totalChunks; i++) {
+                    bos.write(chunkMap.get(i));
+                }
+            }
+
+            System.out.println("Đã ghi xong file: " + fileName);
+        } catch (IOException e) {
+            System.err.println("Lỗi khi ghép file " + fileName + ": " + e.getMessage());
+        }
     }
 }
